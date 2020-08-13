@@ -1,5 +1,5 @@
 # Tone-Scrambles
-Simplified tone scramble experiment that can be run on a web browser (tested on Chrome, Firefox, and Safari). A live version is hosted [here](https://auditory-experiment-example.web.app).
+Simplified tone scramble experiment that can be run on a web browser. A live version is hosted [here](https://auditory-experiment-example.web.app).
 
  ## File descriptions:
 - __index.html__             : main page. Open this in your browser to run the experiment.
