@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <meta name="viewport" content="width=device-width">
+
+        <title>Tone scramble experiment</title>
+
+        <link href="lib/jsPsych-master/css/jspsych.css" rel="stylesheet" type="text/css"></link>
+    </head>
+
+    <body>
+    <p>Preparing the experiment... This should only take a few seconds.</p>
+    
+    <!-- data mgmt, math helper, and sound generation functions -->
+    <script src="lib/data_mgmt.js" type="text/javascript"></script>
+    <script src="lib/math_helpers.js" type="text/javascript"></script>
+    <script src="lib/sound_functions.js" type="text/javascript"></script>
+
+    <!-- JsPsych functions -->
+    <script src="lib/jsPsych-master/jspsych.js"></script>
+    <script src="lib/jsPsych-master/plugins/jspsych-html-button-response.js"></script>
+    <script src="lib/jsPsych-master/plugins/jspsych-image-button-response.js"></script>
+
+    <script> 
+        //Create timeline
+        var timeline = [];
+        
+        //Create array to store data for each trial as a JSON object
+        var trial_data = [];
+        
+        //Global variables allow flexibility in experimental design that jsPsych doesn't (appear to).
+        var ntrials = 6;                                             //Number of trials (should be divisible by 'num_breaks')
+        var trials_type = sv_sum(1, mod_vec(randperm(ntrials), 2));  //Random ordering of major/minor across trials
+        var cur_trial = 0;                                           //Track participant progress
+        var cur_type = NaN;                                          //Track current scramble type (easier than constantly indexing trials_type)
+        var last_correct = false;                                    //Track correctness of latest response
+        var total_correct = 0;                                       //Track total number of correct responses
+
+        //Welcome screen with basic instructions
+        var welcome = {
+            type: "html-button-response",
+            stimulus: "<p>Welcome to the experiment! In this experiment, you must discriminate musically <b>major</b> stimuli from musically <b>minor</b> stimuli.</p><p>The first trial will begin as soon as you press the button below.</p>",
+            choices: ["Begin experiment"],
+            post_trial_gap: 600,
+        }
+        timeline.push(welcome);
+                
+        //Playback screen
+        var playback = {
+            type: "html-button-response",
+            stimulus: "",
+            choices: [],
+            on_start: function(trial) {
+                trial.trial_duration = 65 * 12;
+                
+                //Get the scramble type
+                cur_type = trials_type[cur_trial] == 1 ? "minor" : "major";
+                
+                //Iterate trial number
+                cur_trial += 1;
+
+                //Play the specified scramble and hold onto its specs
+                trial_obj = play_scramble(cur_type);
+            }
+        }
+        
+        //Trial screen
+        var trial = {
+            type: "html-button-response",
+            stimulus: "Error! This text should not appear to the user!",
+            choices: ["minor", "major"],
+            on_start: function(trial) {
+                //Setup text for this trial
+                trial.stimulus = ("<p><b>Trial ").concat(cur_trial.toString()).concat(" of ").concat(ntrials.toString()).concat("</b></p><p>Press 1 for Type 1 (minor). Press 2 for Type 2 (major).</p>");
+            },
+            on_finish: function(data) {
+                //Check correctness to provide feedback
+                let trial_resp = trial.choices[data.button_pressed];
+                if(trial_resp == cur_type) {
+                    last_correct = true;
+                    total_correct++;
+                } else {
+                    last_correct = false;
+                }
+                
+                //Append the trial parameters and results to the data array
+                trial_data = trial_data.concat({
+                    cur_trial: cur_trial,
+                    scramble_type: cur_type,
+                    response: trial_resp,
+                    seq: trial_obj.seq,
+                    freqs: trial_obj.freqs,
+                    f_I: trial_obj.f_I
+                });
+            }
+        }
+        
+        //Feedback screen
+        var feedback = {
+            type: "html-button-response",
+            stimulus: "Error! This text should not appear!",
+            choices: ["Continue"],
+            post_trial_gap: 150,
+            on_start: function(feedback){
+                //Stop scramble if it's still going (should be redundant due to playback trial duration)
+                stop_scramble();
+                if (last_correct){
+                    feedback.stimulus = "<p style='color:green'><b>CORRECT</b></p>"
+                }else{
+                    feedback.stimulus = "<p style='color:red'><b>INCORRECT</b></p>"
+                }
+            }
+        }
+        
+        //Sub-block timeline (playback-trial-feedback triples)
+        var testing_timeline = {
+            timeline: [playback, trial, feedback],
+            repetitions: ntrials
+        }
+        timeline.push(testing_timeline);
+
+        //Thank you page
+        var thank_you = {
+            type: "html-button-response",
+            stimulus: "<p><b>All done! Thank you for your participation.</b></p><p>A copy of your data should be automatically saved to your computer. Please keep this file for your records.</p>",
+            choices: [],
+            on_start: function() {
+                //Save data locally as csv. Source: https://github.com/mholt/PapaParse/issues/175
+                var blob = new Blob([ConvertToCSV(trial_data)]);
+                if (window.navigator.msSaveOrOpenBlob)  // IE hack; see http://msdn.microsoft.com/en-us/library/ie/hh779016.aspx
+                    window.navigator.msSaveBlob(blob, "your_data.csv");
+                else
+                {
+                    var a = window.document.createElement("a");
+                    a.href = window.URL.createObjectURL(blob, {type: "text/plain"});
+                    a.download = "your_data.csv";
+                    document.body.appendChild(a);
+                    a.click();  // IE: "Access is denied"; see: https://connect.microsoft.com/IE/feedback/details/797361/ie-10-treats-blob-url-as-cross-origin-and-denies-access
+                    document.body.removeChild(a);
+                }
+            }
+        }
+        timeline.push(thank_you);  
+                
+        //Execute experiment logic specified above
+        jsPsych.init({timeline: timeline});
+        
+    </script>
+    </body>
+</html>
