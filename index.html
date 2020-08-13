@@ -73,7 +73,7 @@
             choices: ["minor", "major"],
             on_start: function(trial) {
                 //Setup text for this trial
-                trial.stimulus = ("<p><b>Trial ").concat(cur_trial.toString()).concat(" of ").concat(ntrials.toString()).concat("</b></p><p>Press 1 for Type 1 (minor). Press 2 for Type 2 (major).</p>");
+                trial.stimulus = ("<p><b>Trial ").concat(cur_trial.toString()).concat(" of ").concat(ntrials.toString()).concat("</b></p><p>Was the sequence minor or major?</p>");
             },
             on_finish: function(data) {
                 //Check correctness to provide feedback
